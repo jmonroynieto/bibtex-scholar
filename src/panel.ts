@@ -128,6 +128,7 @@ export class PaperPanelView extends ItemView {
     private discover_scroll_el: HTMLElement | null = null
     /** Coalesces rapid search-box keystrokes; cleared query bypasses it (see onOpen's onChange). */
     private search_debouncer = new Debouncer(SEARCH_DEBOUNCE_MS)
+    private search_input: HTMLInputElement | null = null
     /**
      * Live papers-mode search text. Kept on the view so view toggle / clash /
      * missing-PDF round-trips can re-render with the same query the box still
@@ -157,6 +158,10 @@ export class PaperPanelView extends ItemView {
         return PAPER_PANEL_ICON_ID as IconName
     }
 
+    focus_search() {
+        this.search_input?.focus()
+    }
+
     async onOpen() {
         const container = this.containerEl.children[1]
         container.empty()
@@ -178,7 +183,7 @@ export class PaperPanelView extends ItemView {
         this.view_toggle_btn.addEventListener('click', () => this.on_view_toggle_click())
 
         const search_wrap = query_row.createEl('div', { cls: 'bibtex-panel-search' })
-        new SearchComponent(search_wrap).onChange((query) => {
+        const search = new SearchComponent(search_wrap).onChange((query) => {
             // Always remember what the box shows — even in clash/missing-pdf — so
             // returning to papers mode can re-apply the same query.
             this.papers_query = query
@@ -199,6 +204,8 @@ export class PaperPanelView extends ItemView {
                 this.show_papers()
             })
         })
+
+        this.search_input = search.inputEl
 
         this.clash_btn = query_row.createEl('button', {
             cls: 'bibtex-panel-clash-btn',
@@ -246,6 +253,7 @@ export class PaperPanelView extends ItemView {
     }
 
     async onClose() {
+        this.search_input = null
         this.search_debouncer.cancel()
         this.missing_pdf_probe_epoch++
         this.cite_index_build_epoch++

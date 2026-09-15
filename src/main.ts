@@ -1365,6 +1365,7 @@ export default class BibtexScholar extends Plugin {
 				const leaf = existing[0]
 				await workspace.revealLeaf(leaf)
 				workspace.setActiveLeaf(leaf, { focus: true })
+				if (leaf.view instanceof PaperPanelView) leaf.view.focus_search()
 				return
 			}
 		}
@@ -1374,6 +1375,8 @@ export default class BibtexScholar extends Plugin {
 		if (leaf) {
 			await leaf.setViewState({ type: PAPER_PANEL_VIEW_TYPE, active: true })
 			await workspace.revealLeaf(leaf)
+			workspace.setActiveLeaf(leaf, { focus: true })
+			if (leaf.view instanceof PaperPanelView) leaf.view.focus_search()
 		}
 	}
 }
