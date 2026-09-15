@@ -171,6 +171,14 @@ export const copy_to_clipboard = (text: string) => {
  */
 export function restore_editor_focus(app: App): void {
 	const focus = () => {
+		// Canceling a child dialog must not focus the editor behind the phone reader.
+		const phone_card = document.querySelector('.bibtex-phone-modal')
+		if (phone_card) {
+			if (!phone_card.contains(document.activeElement)) {
+				phone_card.querySelector<HTMLButtonElement>('.bibtex-card-close')?.focus({ preventScroll: true })
+			}
+			return
+		}
 		const ws = app.workspace as {
 			activeEditor?: { editor?: { focus?: () => void } }
 		}
@@ -252,7 +260,7 @@ class UploadPdfModal extends Modal {
     folder: string
     fname: string
 
-    constructor(app: App, folder: string = 'paper/pdf', fname: string = 'paper.pdf') {
+    constructor(app: App, folder: string = 'paper/pdf', fname: string = 'paper.pdf', private on_navigate?: () => void) {
         super(app)
         this.folder = folder
         this.fname = fname
@@ -284,6 +292,7 @@ class UploadPdfModal extends Modal {
 
             await this.app.vault.createBinary(file_path, data)
             await this.app.workspace.openLinkText(this.fname, this.fname, true)
+            this.on_navigate?.()
         }
         reader.readAsArrayBuffer(file)
         this.close()
@@ -301,14 +310,14 @@ class UploadPdfModal extends Modal {
  * @param folder - The folder where the file should be located or created.
  * @param app - The Obsidian App instance for interacting with the vault and workspace.
  */
-const LinkedFileButton = ({ label, fname, folder, app, plugin }: { label: string, fname: string, folder: string, app: App, plugin: BibtexScholar }) => {
+const LinkedFileButton = ({ label, fname, folder, app, plugin, on_navigate }: { label: string, fname: string, folder: string, app: App, plugin: BibtexScholar, on_navigate?: () => void }) => {
     const exist = app.metadataCache.getFirstLinkpathDest(fname, '')
     const state_cls = exist ? 'bibtex-file-exist' : 'bibtex-file-not-exist'
 
     return (
         <a
             className={`bibtex-card-file-link ${state_cls}`}
-            onMouseOver={(event) => {
+            onMouseOver={Platform.isMobile ? undefined : (event) => {
                 app.workspace.trigger("hover-link", {
                     event,
                     source: "preview",
@@ -320,10 +329,11 @@ const LinkedFileButton = ({ label, fname, folder, app, plugin }: { label: string
             }}
             onClick={async (event) => {
                 if (exist) {
-                    app.workspace.openLinkText(fname, fname, true)
+                    await app.workspace.openLinkText(fname, fname, true)
+                    on_navigate?.()
                 } else {
                     if (fname.endsWith('.pdf')) {
-                        new UploadPdfModal(app, folder, fname).open()
+                        new UploadPdfModal(app, folder, fname, on_navigate).open()
                     } else if (fname.endsWith('.md')) {
                         // ensure the folder exists
                         if (!await app.vault.getFolderByPath(folder)) {
@@ -352,6 +362,7 @@ const LinkedFileButton = ({ label, fname, folder, app, plugin }: { label: string
                         // supposed that the "Trigger Templater on new file creation" setting is enabled in the Templater plugin settings
                         await app.vault.create(`${folder}/${fname}`, content)
                         await app.workspace.openLinkText(fname, fname, true)
+                        on_navigate?.()
                     }
                 }
             }}
@@ -514,7 +525,8 @@ const ActionStrip = ({
     on_close: () => void
     open_mentions: () => void | Promise<void>
 }) => {
-    const layout = normalize_action_strip_layout(plugin.cache.action_strip_layout)
+    const layout = Platform.isPhone ? 'rows' : normalize_action_strip_layout(plugin.cache.action_strip_layout)
+    const on_navigate = Platform.isPhone ? on_close : undefined
     const rows = layout === 'rows'
     const caption = (text: string) =>
         rows ? (
@@ -543,13 +555,15 @@ const ActionStrip = ({
             <div className="bibtex-card-btn-group is-open" role="group" aria-label="Open">
                 {caption('Open')}
                 <div className="bibtex-card-btn-group-cells">
-                    <LinkedFileButton label="note" fname={`${paper_id}.md`} folder={plugin.cache.note_folder} app={app} plugin={plugin} />
-                    <LinkedFileButton label="pdf" fname={`${paper_id}.pdf`} folder={plugin.cache.pdf_folder} app={app} plugin={plugin} />
+                    <LinkedFileButton label="note" fname={`${paper_id}.md`} folder={plugin.cache.note_folder} app={app} plugin={plugin} on_navigate={on_navigate} />
+                    <LinkedFileButton label="pdf" fname={`${paper_id}.pdf`} folder={plugin.cache.pdf_folder} app={app} plugin={plugin} on_navigate={on_navigate} />
                     <CardBtn
                         label="source"
                         title={`Jump to BibTeX source (${bibtex.source_path})`}
                         onClick={() => {
-                            void plugin.open_line(String(bibtex.source_path), 0)
+                            void plugin.open_line(String(bibtex.source_path), 0).then((opened) => {
+                                if (opened) on_navigate?.()
+                            })
                         }}
                     />
                     <CardBtn label="mentions" title="Search mentions of this paper" onClick={() => { void open_mentions() }} />
@@ -848,7 +862,7 @@ const CitationCardBody = ({
         if (!search_leaf) {
             const leaf = app.workspace.getLeftLeaf(false)
             if (leaf) {
-                leaf.setViewState({ type: 'search', active: true })
+                await leaf.setViewState({ type: 'search', active: true })
                 search_leaf = app.workspace.getLeavesOfType('search')[0]
             }
         }
@@ -861,6 +875,7 @@ const CitationCardBody = ({
                 search_leaf.view.setQuery(query)
             }
             app.workspace.setActiveLeaf(search_leaf)
+            if (Platform.isPhone) on_close()
         }
     }
 
@@ -868,11 +883,11 @@ const CitationCardBody = ({
         <>
             {/* Near-chip chrome: decide what to do with the card, then act, then read. */}
             <div className="bibtex-card-chrome">
-                <CardAffordance
+                {!Platform.isPhone && <CardAffordance
                     pinned={pinned}
                     on_pin_toggle={on_pin_toggle}
                     on_close={on_close}
-                />
+                />}
 
                 <header className="bibtex-card-header">
                     {/* Citekey is the system focus — year/type are quiet companions. */}
@@ -1017,7 +1032,7 @@ const CardAffordance = ({
     on_pin_toggle: () => void
     on_close: () => void
 }) => {
-    const { hint } = card_affordance_copy(pinned)
+    const { hint } = card_affordance_copy(pinned, Platform.isMobile)
     return (
         <div
             className={pinned ? 'bibtex-card-affordance is-pinned' : 'bibtex-card-affordance'}
@@ -1045,7 +1060,7 @@ const CardAffordance = ({
             <button
                 type="button"
                 className="bibtex-card-affordance-action bibtex-card-close"
-                title="Dismiss (Esc)"
+                title={Platform.isMobile ? 'Dismiss citation card' : 'Dismiss (Esc)'}
                 aria-label="Dismiss citation card"
                 onClick={on_close}
             >
@@ -1152,6 +1167,80 @@ function card_surface_props(
         style,
         'aria-label': `Citation ${paper_id}`,
     }
+}
+
+/** Native modal owns focus, background blocking, and nested-dialog stacking on phones. */
+const PhoneCard = ({ record }: { record: ChipRecord }) => {
+    const { app, bibtex, plugin, anchor } = record
+    const [modal] = useState(() => new Modal(app))
+    const card_ref = useRef<HTMLDivElement | null>(null)
+    const restore_anchor = useRef(true)
+    const close = () => {
+        restore_anchor.current = false
+        citation_popup.dismiss()
+    }
+
+    useLayoutEffect(() => {
+        modal.modalEl.classList.add('bibtex-phone-modal')
+        modal.containerEl.classList.add('bibtex-phone-modal-container')
+        modal.contentEl.classList.add('bibtex-phone-modal-content')
+        modal.modalEl.setAttribute('role', 'dialog')
+        modal.modalEl.setAttribute('aria-modal', 'true')
+        modal.modalEl.setAttribute('aria-label', display_bibtex_plain_text(bibtex.fields.title || bibtex.fields.id))
+        modal.onClose = () => citation_popup.dismiss()
+        modal.open()
+        card_ref.current?.querySelector<HTMLButtonElement>('.bibtex-card-close')?.focus({ preventScroll: true })
+        return () => {
+            modal.onClose = () => {}
+            modal.close()
+            if (restore_anchor.current && anchor.isConnected) {
+                anchor.querySelector<HTMLButtonElement>('button')?.focus({ preventScroll: true })
+            }
+        }
+    }, [modal, anchor])
+
+    useLayoutEffect(() => {
+        const card = card_ref.current
+        if (!card) return
+        const chrome = card.querySelector<HTMLElement>('.bibtex-card-chrome')!
+        const close_bar = card.querySelector<HTMLElement>('.bibtex-phone-close-bar')!
+        const update = () => {
+            const viewport = window.visualViewport
+            modal.containerEl.style.setProperty('--bibtex-phone-height', `${viewport?.height ?? window.innerHeight}px`)
+            modal.containerEl.style.setProperty('--bibtex-phone-top', `${viewport?.offsetTop ?? 0}px`)
+            // Include reading padding and the gap above the field scrollport.
+            const available = card.clientHeight - close_bar.offsetHeight - chrome.offsetHeight - 22
+            card.classList.toggle('is-page-scroll', available < 120)
+        }
+        update()
+        const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(update)
+        observer?.observe(card)
+        observer?.observe(chrome)
+        observer?.observe(close_bar)
+        window.addEventListener('resize', update)
+        window.visualViewport?.addEventListener('resize', update)
+        window.visualViewport?.addEventListener('scroll', update)
+        return () => {
+            observer?.disconnect()
+            window.removeEventListener('resize', update)
+            window.visualViewport?.removeEventListener('resize', update)
+            window.visualViewport?.removeEventListener('scroll', update)
+        }
+    }, [modal])
+
+    const surface = card_surface_props(plugin, bibtex.fields.id, {})
+    return createPortal(
+        <div ref={card_ref} className="bibtex-hover-card is-phone" style={surface.style}>
+            <div className="bibtex-phone-close-bar">
+                <button type="button" className="bibtex-card-close" aria-label="Close citation card"
+                    onClick={() => citation_popup.dismiss()}>Close ×</button>
+            </div>
+            <div className="bibtex-phone-reading">
+                <CitationCardBody bibtex={bibtex} plugin={plugin} app={app} pinned={false}
+                    on_pin_toggle={() => {}} on_close={close} />
+            </div>
+        </div>, modal.contentEl,
+    )
 }
 
 /**
@@ -1513,7 +1602,9 @@ const CardManager = ({ app }: { app: App }) => {
         // Avoid double-rendering a paper that was just pinned from its preview.
         if (record && !pin_registry.is_pinned(record.bibtex.fields.id)) {
             cards.push(
-                <PreviewCard key={active_id} instance_id={active_id} record={record} />,
+                Platform.isPhone
+                    ? <PhoneCard key={active_id} record={record} />
+                    : <PreviewCard key={active_id} instance_id={active_id} record={record} />,
             )
         }
     }

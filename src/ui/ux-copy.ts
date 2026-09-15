@@ -99,7 +99,13 @@ export type CardAffordanceCopy = {
 	line: string
 }
 
-export function card_affordance_copy(pinned: boolean): CardAffordanceCopy {
+export function card_affordance_copy(pinned: boolean, mobile = false): CardAffordanceCopy {
+	if (mobile) {
+		const hint = pinned ? 'Drag empty space to move' : 'Tap outside to close'
+		return { hint, line: hint, detail: pinned
+			? 'Stays open when you change notes. Drag empty card space to move. Tap Unpin or Close to dismiss.'
+			: 'Tap outside or Close to dismiss. Pin keeps the card open across notes.' }
+	}
 	if (pinned) {
 		const hint = 'Esc · drag empty space to move'
 		return {

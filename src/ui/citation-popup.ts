@@ -276,6 +276,8 @@ export class CitationPopupController {
 		if (!this.active_id) {
 			return
 		}
+		// Native phone modal scopes route Escape to the topmost child dialog.
+		if (this.doc?.querySelector('.bibtex-phone-modal-container')) return
 		// stopImmediatePropagation: pin Esc lives on the same document listener
 		// chain. Without it, dismiss can clear active_id and the pin handler
 		// would also unpin in the same keypress.

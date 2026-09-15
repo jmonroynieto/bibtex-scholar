@@ -25,18 +25,40 @@ function make_content_el(): HTMLElement & { createEl: Function; empty: Function 
 
 export class Modal {
 	app: unknown
+	containerEl: HTMLElement
+	modalEl: HTMLElement
 	contentEl: HTMLElement & { createEl: Function; empty: Function }
 
 	constructor(app?: unknown) {
 		this.app = app
 		this.contentEl = make_content_el()
+		this.containerEl = document.createElement('div')
+		this.containerEl.className = 'modal-container'
+		this.modalEl = document.createElement('div')
+		this.modalEl.className = 'modal'
+		this.modalEl.setAttribute('role', 'dialog')
+		this.modalEl.setAttribute('aria-modal', 'true')
+		this.modalEl.appendChild(this.contentEl)
+		this.containerEl.appendChild(this.modalEl)
+	}
+
+	private on_keydown = (event: KeyboardEvent) => {
+		const modals = document.querySelectorAll('.modal-container')
+		if (event.key === 'Escape' && modals[modals.length - 1] === this.containerEl) {
+			event.stopImmediatePropagation()
+			this.close()
+		}
 	}
 
 	open() {
+		document.addEventListener('keydown', this.on_keydown)
+		document.body.appendChild(this.containerEl)
 		this.onOpen()
 	}
 
 	close() {
+		document.removeEventListener('keydown', this.on_keydown)
+		this.containerEl.remove()
 		this.onClose()
 	}
 

@@ -12,7 +12,7 @@
 - Export library to vault `.bib` from Copy/export modal
 - Settings diagnostics (local scale + audit)
 - Settings tab extracted from `main.ts`
-- **C3 mobile hardening (mostly done):** panel `--icon-size` with touch-sized buttons; safe-area corner actions; click-only chip open on mobile (no synthetic hover leave-close); higher pin-drag threshold; discover-chip / clash / missing-PDF touch floors. `isDesktopOnly` stays `false` — installable on mobile with these fixes; not a full redesign (e.g. dedicated pin-without-drag UX, polished small-screen panel chrome).
+- **C3 mobile hardening:** panel `--icon-size` with touch-sized buttons; safe-area corner actions; click-only chip open on mobile (no synthetic hover leave-close); higher pin-drag threshold; discover-chip / clash / missing-PDF touch floors. `isDesktopOnly` stays `false` — installable on mobile with these fixes; phone citation cards now use the full-screen reader described below; tablet windowing remains available.
 
 ## Platform work
 
@@ -20,9 +20,13 @@
 
 Configurable CSL (or style presets) for export and note templates, beyond current `\autocite{id}` / BibTeX copy helpers. Cache/export story is already good enough if we ever reopen this; no active plan.
 
-### C3 — Mobile — **mostly done**
+### C3 — Mobile
 
-Shipped under “Done recently.” Residual polish only if a real mobile bug shows up — not a tracked open project.
+Phone citation cards now open in a full-screen Obsidian modal with a persistent Close button. The title and all Copy/Open/Change actions remain visible above scrolling reference fields; when less than 120px remains for fields, the page below Close scrolls together. Actions use quiet, touch-sized rows; phone layout overrides the desktop action-layout preference without changing it.
+
+Copying keeps the card open. Successful note/PDF/source/mentions navigation closes it. Child dialogs sit above the reader and cancellation returns to it. Phones have no pin controls or Escape hints; tablets retain floating/pinned cards with touch wording. Device selection uses Obsidian's phone classification, not desktop window width.
+
+Automated coverage exercises modal dismissal, navigation, scrolling fallback, child-dialog focus, and tablet behavior. Physical-device checks remain: iOS/Android safe areas, rotation, 320/375/430px layouts, enlarged text, and long titles/abstracts.
 
 ## Technical debt
 
@@ -64,5 +68,5 @@ Recorded as open/deferred in [`SPEED.md`](../SPEED.md) S8 — not bugs, intentio
 ### Not debt
 
 - **C2 CSL** — out of scope (see Platform work)
-- **C3 mobile** — mostly done; further issues are ordinary bugs, not a program slice
+- **C3 mobile** — phone reader implemented; physical-device validation remains listed above
 - One-off design notes / historical QA lists under `docs/*` — not a backlog

@@ -59,6 +59,14 @@ describe('ux-copy / user-facing messages', () => {
 		)
 	})
 
+	it('mobile card hints use tap wording without keyboard instructions', () => {
+		for (const pinned of [true, false]) {
+			const copy = card_affordance_copy(pinned, true)
+			expect(copy.detail).toMatch(/Tap/)
+			expect(copy.hint + copy.detail).not.toMatch(/Esc|click/i)
+		}
+	})
+
 	it('card_affordance_copy differs for preview vs pin (hint always readable)', () => {
 		const preview = card_affordance_copy(false)
 		expect(preview.hint).toMatch(/Esc/)

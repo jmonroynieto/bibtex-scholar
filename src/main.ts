@@ -1006,7 +1006,7 @@ export default class BibtexScholar extends Plugin {
 		const file = this.app.vault.getAbstractFileByPath(path)
 		if (!(file instanceof TFile)) {
 			new Notice(`File not found: ${path}`)
-			return
+			return false
 		}
 		// Open in the main split only. getLeaf(false) after a panel click can
 		// target the side panel and replace the paper panel itself.
@@ -1014,6 +1014,7 @@ export default class BibtexScholar extends Plugin {
 			this.app.workspace.getMostRecentLeaf(this.app.workspace.rootSplit)
 			?? this.app.workspace.getLeaf(true)
 		await leaf.openFile(file, { eState: { line } })
+		return true
 	}
 
 	async on_file_modified(file: TFile, from_command = false) {

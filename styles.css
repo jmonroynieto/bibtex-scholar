@@ -1500,3 +1500,132 @@ code.bibtex-source-tag.is-clashing {
     border-radius: var(--radius-s);
 }
 
+
+/* Phone reference reader. Native Modal supplies focus and child-dialog stacking. */
+.modal-container.bibtex-phone-modal-container {
+    padding: 0;
+    top: var(--bibtex-phone-top, 0px);
+    height: var(--bibtex-phone-height, 100dvh);
+    bottom: auto;
+    align-items: stretch;
+    justify-content: stretch;
+}
+.modal.bibtex-phone-modal {
+    position: relative;
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    max-height: none;
+    margin: 0;
+    padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px)
+        env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+    border: 0;
+    border-radius: 0;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+.bibtex-phone-modal > .modal-close-button,
+.bibtex-phone-modal > .modal-header { display: none; }
+.bibtex-phone-modal .bibtex-phone-modal-content {
+    height: 100%;
+    max-height: none;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+.bibtex-hover-card.is-phone {
+    --bibtex-field-lh: 1.4;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    background: var(--background-primary);
+    color: var(--text-normal);
+    line-height: 1.4;
+}
+.bibtex-phone-close-bar {
+    display: flex;
+    justify-content: flex-end;
+    flex: 0 0 auto;
+    padding: 4px 12px;
+}
+.bibtex-phone-close-bar .bibtex-card-close {
+    min-height: 44px;
+    background: transparent;
+    box-shadow: none;
+    color: var(--text-muted);
+}
+.bibtex-phone-reading {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 0 12px 12px;
+    gap: 10px;
+    overflow: hidden;
+    overscroll-behavior: contain;
+}
+.is-phone .bibtex-card-chrome { gap: 10px; }
+.is-phone .bibtex-card-title { font-size: 1.35em; }
+.is-phone .bibtex-card-title-row { padding: 0; }
+.is-phone .bibtex-card-id { overflow-wrap: anywhere; min-width: 0; }
+.is-phone .bibtex-card-fields { margin: 0; }
+.is-phone .bibtex-card-field-val { overflow-wrap: anywhere; }
+.is-phone .bibtex-card-field.is-abstract .bibtex-card-field-val {
+    max-height: none;
+    overflow: visible;
+}
+.is-phone.is-page-scroll .bibtex-phone-reading { overflow-y: auto; }
+.is-phone.is-page-scroll .bibtex-card-fields { flex: 0 0 auto; overflow: visible; }
+.is-phone .bibtex-hover-button-bar.is-layout-rows { gap: 6px; }
+.is-phone .bibtex-hover-button-bar.is-layout-rows .bibtex-card-btn-group {
+    flex-direction: column;
+    gap: 2px;
+}
+.is-phone .bibtex-hover-button-bar.is-layout-rows .bibtex-card-btn-group-label {
+    width: auto;
+    min-width: 0;
+    align-self: flex-start;
+    justify-content: flex-start;
+    margin: 0;
+    padding: 0;
+    font-size: 0.7em;
+    letter-spacing: 0.05em;
+}
+.is-phone .bibtex-hover-button-bar.is-layout-rows .bibtex-card-btn-group-cells {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+.bibtex-hover-card.is-phone .bibtex-hover-button-bar .bibtex-card-btn,
+.bibtex-hover-card.is-phone .bibtex-hover-button-bar a.bibtex-card-file-link {
+    flex: 1 0 auto;
+    width: auto;
+    min-width: min-content;
+    max-width: 100%;
+}
+.bibtex-hover-card.is-phone .bibtex-card-btn,
+.bibtex-hover-card.is-phone a.bibtex-card-file-link button {
+    min-height: 44px;
+    padding: 4px 6px;
+    font-size: 0.9em;
+    font-weight: 400;
+    color: var(--text-muted);
+    border-color: var(--background-modifier-border);
+    background: transparent;
+    overflow: visible;
+    text-overflow: clip;
+}
+.bibtex-hover-card.is-phone .bibtex-card-btn.is-danger { color: var(--text-error); }
+.bibtex-hover-card.is-phone a.bibtex-card-file-link button { width: 100%; }
+
+/* Match the specificity of the desktop Change-row priority rules. */
+.bibtex-hover-card.is-phone .bibtex-hover-button-bar.is-layout-rows .is-change .bibtex-card-btn {
+    flex: 1 0 auto;
+    min-width: min-content;
+    max-width: none;
+    padding: 4px 6px;
+}

@@ -7,6 +7,7 @@
  * logic tests off React), so this file deliberately routes around that alias
  * to exercise the actual component tree end to end.
  */
+import { Platform, Modal } from 'obsidian'
 import { act, cleanup, fireEvent } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { BibtexElement } from 'src/bibtex'
@@ -67,7 +68,7 @@ function make_fake_plugin() {
 			pdf_folder: 'pdf',
 			template_path: '',
 		},
-		open_line: async () => {},
+		open_line: async () => true,
 		uncache_bibtex_with_id: async () => {},
 	}
 }
@@ -123,8 +124,148 @@ describe('citation popup DOM behavior', () => {
 		await Promise.resolve()
 		cleanup()
 		document.body.innerHTML = ''
+		Platform.isPhone = false
+		Platform.isMobile = false
 		vi.useRealTimers()
 	})
+
+
+    it('phone opens a modal reader with every action, no pin hints, and restores chip focus on close', async () => {
+        Platform.isPhone = true
+        Platform.isMobile = true
+        const { chip_button } = mount(false, true)
+        await act(async () => { fireEvent.click(chip_button()) })
+        const modal = document.querySelector('.bibtex-phone-modal')!
+        expect(modal.getAttribute('aria-modal')).toBe('true')
+        expect(modal.getAttribute('aria-label')).toBe('On the Widgets')
+        expect(modal.querySelector('.bibtex-card-pin')).toBeNull()
+        expect(modal.textContent).not.toMatch(/Esc|click outside/i)
+        expect(modal.querySelectorAll('.bibtex-card-btn')).toHaveLength(11)
+        const close = modal.querySelector('.bibtex-card-close')!
+        expect(document.activeElement).toBe(close)
+        await act(async () => { fireEvent.scroll(window); fireEvent.resize(window) })
+        expect(document.querySelector('.bibtex-phone-modal')).toBeTruthy()
+        await act(async () => { fireEvent.click(close) })
+        expect(document.querySelector('.bibtex-phone-modal')).toBeNull()
+        expect(document.activeElement).toBe(chip_button())
+    })
+
+    it('phone copying keeps the card open and successful source navigation closes it', async () => {
+        Platform.isPhone = true
+        Platform.isMobile = true
+        Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: vi.fn().mockResolvedValue(undefined) } })
+        const { chip_button } = mount()
+        await act(async () => { fireEvent.click(chip_button()) })
+        await act(async () => { fireEvent.click(document.querySelector('[title="Copy citation key"]')!) })
+        expect(navigator.clipboard.writeText).toHaveBeenCalledWith(bibtex.fields.id)
+        expect(document.querySelector('.bibtex-phone-modal')).toBeTruthy()
+        await act(async () => { fireEvent.click(document.querySelector('[title^="Jump to BibTeX source"]')!) })
+        expect(document.querySelector('.bibtex-phone-modal')).toBeNull()
+    })
+
+    it('phone delegates Escape to native modal scopes and retains the card after a child dialog closes', async () => {
+        Platform.isPhone = true
+        Platform.isMobile = true
+        const { chip_button } = mount()
+        await act(async () => { fireEvent.click(chip_button()) })
+        const child = new Modal({} as any)
+        child.open()
+        await act(async () => { fireEvent.keyDown(document, { key: 'Escape' }) })
+        expect(document.querySelector('.bibtex-phone-modal')).toBeTruthy()
+        expect(child.containerEl.isConnected).toBe(false)
+        expect(document.querySelector('.bibtex-phone-modal')).toBeTruthy()
+        await act(async () => { fireEvent.keyDown(document, { key: 'Escape' }) })
+        expect(document.querySelector('.bibtex-phone-modal')).toBeNull()
+    })
+
+
+    it('phone only switches to whole-page scrolling when fixed chrome leaves too little reading space', async () => {
+        Platform.isPhone = true
+        Platform.isMobile = true
+        const { chip_button } = mount()
+        await act(async () => { fireEvent.click(chip_button()) })
+        const card = document.querySelector('.bibtex-hover-card.is-phone')!
+        const chrome = card.querySelector('.bibtex-card-chrome')!
+        const close = card.querySelector('.bibtex-phone-close-bar')!
+        Object.defineProperty(card, 'clientHeight', { configurable: true, value: 700 })
+        Object.defineProperty(chrome, 'offsetHeight', { configurable: true, value: 300 })
+        Object.defineProperty(close, 'offsetHeight', { value: 52 })
+        await act(async () => { fireEvent.resize(window) })
+        expect(card.classList.contains('is-page-scroll')).toBe(false)
+        Object.defineProperty(chrome, 'offsetHeight', { value: 550 })
+        await act(async () => { fireEvent.resize(window) })
+        expect(card.classList.contains('is-page-scroll')).toBe(true)
+        Object.defineProperty(card, 'clientHeight', { value: 900 })
+        await act(async () => { fireEvent.resize(window) })
+        expect(card.classList.contains('is-page-scroll')).toBe(false)
+    })
+
+    it('phone keeps the card when source navigation cannot find its file', async () => {
+        Platform.isPhone = true
+        Platform.isMobile = true
+        const root = document.body.appendChild(document.createElement('div'))
+        const app = make_fake_app(root)
+        const plugin = make_fake_plugin()
+        plugin.open_line = async () => false
+        const { chip_button } = mount_chip(app, plugin, bibtex)
+        await act(async () => { fireEvent.click(chip_button()) })
+        await act(async () => { fireEvent.click(document.querySelector('[title^="Jump to BibTeX source"]')!) })
+        expect(document.querySelector('.bibtex-phone-modal')).toBeTruthy()
+    })
+
+    it.each(['note', 'pdf'])('phone dismisses after opening an existing %s', async (label) => {
+        Platform.isPhone = true
+        Platform.isMobile = true
+        const root = document.body.appendChild(document.createElement('div'))
+        const app = make_fake_app(root) as any
+        app.metadataCache.getFirstLinkpathDest = () => ({ path: 'existing' })
+        app.workspace.openLinkText = vi.fn().mockResolvedValue(undefined)
+        const { chip_button } = mount_chip(app, make_fake_plugin(), bibtex)
+        await act(async () => { fireEvent.click(chip_button()) })
+        const button = Array.from(document.querySelectorAll('.bibtex-card-file-link button')).find(b => b.textContent === label)!
+        await act(async () => { fireEvent.click(button) })
+        expect(app.workspace.openLinkText).toHaveBeenCalled()
+        expect(document.querySelector('.bibtex-phone-modal')).toBeNull()
+    })
+
+    it('phone opens mentions with the reference query and dismisses the reader', async () => {
+        Platform.isPhone = true
+        Platform.isMobile = true
+        const root = document.body.appendChild(document.createElement('div'))
+        const app = make_fake_app(root) as any
+        const leaf = { view: { setQuery: vi.fn() } }
+        app.workspace.getLeavesOfType = () => [leaf]
+        const { chip_button } = mount_chip(app, make_fake_plugin(), bibtex)
+        await act(async () => { fireEvent.click(chip_button()) })
+        await act(async () => { fireEvent.click(document.querySelector('[title="Search mentions of this paper"]')!) })
+        expect(leaf.view.setQuery).toHaveBeenCalledWith(expect.stringContaining(bibtex.fields.id))
+        expect(document.querySelector('.bibtex-phone-modal')).toBeNull()
+    })
+
+    it('canceling a phone child confirmation restores card focus without opening the editor keyboard', async () => {
+        Platform.isPhone = true
+        Platform.isMobile = true
+        const root = document.body.appendChild(document.createElement('div'))
+        const editor = { focus: vi.fn() }
+        const app = make_fake_app(root, editor)
+        const { chip_button } = mount_chip(app, make_fake_plugin(), bibtex)
+        await act(async () => { fireEvent.click(chip_button()) })
+        const child = new ConfirmActionModal(app as any, { title: 'Confirm', body: 'Test', on_confirm: () => {} })
+        child.open()
+        await act(async () => { child.close(); vi.runAllTimers() })
+        expect(editor.focus).not.toHaveBeenCalled()
+        expect(document.querySelector('.bibtex-phone-modal')?.contains(document.activeElement)).toBe(true)
+    })
+
+    it('tablet retains floating pin controls with touch wording', async () => {
+        Platform.isMobile = true
+        const { chip_button, card } = mount()
+        await act(async () => { fireEvent.click(chip_button()) })
+        expect(document.querySelector('.bibtex-phone-modal')).toBeNull()
+        expect(card()?.querySelector('.bibtex-card-pin')).toBeTruthy()
+        expect(card()?.textContent).toContain('Tap outside')
+        expect(card()?.textContent).not.toContain('Esc')
+    })
 
 	it('chip root is contentEditable=false, so a CM6 host cannot treat its text as editable document content', () => {
 		const { chip_el } = mount()
