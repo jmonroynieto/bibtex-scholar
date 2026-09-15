@@ -1073,6 +1073,17 @@ code.bibtex-source-tag.is-clashing {
     flex: 1 1 auto;
     min-height: 0;
     overflow: auto;
+    display: flex;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    align-items: stretch;
+    gap: 6px;
+    padding: 2px 3px 3px;
+}
+
+.bibtex-panel-discover-scroll > .bibtex-panel-list-status,
+.bibtex-panel-discover-scroll > .bibtex-panel-clash-empty {
+    flex: 0 0 100%;
 }
 
 .bibtex-panel-query-row {
@@ -1147,14 +1158,22 @@ code.bibtex-source-tag.is-clashing {
     box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.18), 0 0 0 2px var(--background-modifier-border-hover);
 }
 
-/* Discover-mode chip wrapper — inline-block so vertical margin actually creates
- * breathing room between wrapped lines, not just horizontally between chips. */
+/* Share spare row width between chips; the container owns all spacing. */
 .bibtex-panel-discover-chip {
-    display: inline-block;
-    margin: 0 var(--size-4-1) var(--size-4-1) 0;
+    display: flex;
+    flex: 1 1 auto;
+    margin: 0;
+}
+
+.bibtex-panel-discover-chip .bibtex-hover-chip,
+.bibtex-panel-discover-chip .bibtex-hover {
+    display: flex;
+    flex: 1 1 auto;
 }
 
 .bibtex-panel-discover-chip .bibtex-hover button {
+    flex: 1 1 auto;
+    margin: 0;
     padding: var(--size-4-1) var(--size-4-3);
 }
 
