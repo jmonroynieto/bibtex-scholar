@@ -1,6 +1,6 @@
 {
 	"name": "BibTeX Scholar",
-	"version": "1.5.0",
+	"version": "1.5.1",
 	"description": "Obsidian plugin for managing/citing BibTeX entries",
 	"main": "main.js",
 	"scripts": {
