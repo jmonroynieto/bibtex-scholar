@@ -1,5 +1,5 @@
 import { App, Notice, Plugin, TFile, TFolder, normalizePath, type MarkdownPostProcessorContext } from 'obsidian'
-import { parse_bibtex, make_bibtex, entry_source, build_clash_reasons_by_id, check_duplicate_id, check_duplicate_doi, count_citekeys_in_note, find_bibtex_block_line_range, find_clashes, match_citekey_renames, is_pending_same_file_rename, replace_bibtex_fence_citekey, replace_inline_citekey, source_tag_state, FetchBibtexOnline, RenameCitekeyModal, type BibtexDict, type BibtexField, type Clash, type ClashReason, type CiteHit } from 'src/bibtex'
+import { parse_bibtex, make_bibtex, entry_source, build_clash_reasons_by_id, check_duplicate_id, check_duplicate_doi, find_bibtex_block_line_range, find_clashes, match_citekey_renames, is_pending_same_file_rename, replace_bibtex_fence_citekey, replace_inline_citekey, source_tag_state, FetchBibtexOnline, RenameCitekeyModal, type BibtexDict, type BibtexField, type Clash, type ClashReason, type CiteHit } from 'src/bibtex'
 import {
 	audit_bibtex_dict,
 	classify_path_fingerprints,
@@ -47,6 +47,7 @@ import { EditorPrompt } from 'src/prompt'
 import { PaperPanelView, PAPER_PANEL_ICON_ID, PAPER_PANEL_VIEW_TYPE } from 'src/panel'
 import { createHoverWidgetPlugin } from 'src/editor'
 import { SaveCoalescer } from 'src/infra/save-coalesce'
+import { NoteCitekeyCountCache } from 'src/infra/note-citekey-cache'
 import { BibtexScholarSetting } from 'src/architecture/settings-tab'
 import {
 	cite_index_all_cites,
@@ -103,6 +104,8 @@ export default class BibtexScholar extends Plugin {
 	private cite_index: CitePathIndex = create_cite_path_index()
 	private cite_index_ready = false
 	private save_coalescer: SaveCoalescer | null = null
+	/** Amortizes count_citekeys_in_note across fences in the same note (SPEED: see note-citekey-cache.ts). */
+	private note_citekey_counts = new NoteCitekeyCountCache()
 	/** Lightweight counters for idle / scale trust checks (Phase C). */
 	perf: PerfCounters = create_perf_counters()
 
@@ -433,7 +436,7 @@ export default class BibtexScholar extends Plugin {
 		// Built once per block render, reused for every entry in this block:
 		// avoids check_duplicate_id rescanning the whole note per entry
 		// (SPEED: see external_UPSTREAM-BIBTEX-SCHOLAR.md).
-		const same_note_counts = count_citekeys_in_note(section_text)
+		const same_note_counts = this.note_citekey_counts.get(ctx.sourcePath, section_text)
 		// One summary Notice for losers in this block (not one toast per entry).
 		let id_dup_hits = 0
 		let doi_dup_hits = 0
@@ -792,6 +795,7 @@ export default class BibtexScholar extends Plugin {
 		if (this.cite_index_ready) {
 			cite_index_remove_path(this.cite_index, path)
 		}
+		this.note_citekey_counts.remove(path)
 		if (n > 0 || had_fp) {
 			await this.save_cache()
 		}
@@ -1333,6 +1337,7 @@ export default class BibtexScholar extends Plugin {
 		if (this.cite_index_ready) {
 			cite_index_retarget_path(this.cite_index, old_path, new_path)
 		}
+		this.note_citekey_counts.retarget(old_path, new_path)
 		if (dict_changed || fp_changed) {
 			await this.save_cache()
 			if (dict_changed) {
